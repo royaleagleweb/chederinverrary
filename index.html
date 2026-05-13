@@ -1,229 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Cheder Menachem of Inverrary — Pre-1A</title>
-<meta name="description" content="A Chabad-based Pre-1A program serving families in the Inverrary community. Structured, steady, and warm." />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoFlo Bathroom Remodel — Fort Lauderdale Bathroom Renovation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600;700&family=Frank+Ruhl+Libre:wght@400;500;700&display=swap" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
-<body data-page="home">
+<body>
+<div id="root"></div>
 
-<div data-site-header></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<!-- ============================================================
-     HERO — split layout by default; tweakable to overlay or typographic
-     ============================================================ -->
-<section class="hero hero-split" data-hero-host data-screen-label="Hero">
-  <div class="hero-watermark heb" aria-hidden="true">ח</div>
-  <div class="container">
-    <div class="hero-grid">
-      <div class="hero-content">
-        <span class="eyebrow">בס״ד · Welcome</span>
-        <h1>A proper start<br/>to a child's first year of Cheder.</h1>
-        <p class="hero-tag heb">תורה · דרך ארץ · חינוך מתוך חום וסדר</p>
-        <p class="hero-lede">Cheder Menachem of Inverrary is a Chabad-based Pre-1A program — a structured, steady environment guided by the values and approach of established Chabad מוסדות.</p>
-        <div class="hero-ctas">
-          <a class="btn btn-primary" href="enrollment.html">
-            Apply for Enrollment
-            <span class="arrow">→</span>
-          </a>
-          <a class="btn btn-secondary" href="program.html">Explore the Program</a>
-        </div>
-      </div>
-      <div class="hero-image">
-        <image-slot id="home-hero" placeholder="Photo of classroom, children, or campus"></image-slot>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     INTRO — Welcome
-     ============================================================ -->
-<section data-screen-label="Welcome">
-  <div class="container-mid">
-    <div class="section-head">
-      <span class="eyebrow">Welcome</span>
-      <h2>A program for families who want the right beginning.</h2>
-      <p class="heb">ברוכים הבאים</p>
-    </div>
-    <div style="max-width: 56em; margin: 0 auto; text-align: center; font-size: 18px; line-height: 1.7; color: var(--ink-soft);">
-      <p>Cheder Menachem of Inverrary serves families in the local community with a single, carefully built Pre-1A class. The program is designed to give children a proper start to their first year of Cheder — in a structured, steady environment, guided by the values and approach of established Chabad educational institutions.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     VERSE / Foundation
-     ============================================================ -->
-<section class="tight" style="background: var(--bg-alt);" data-screen-label="Foundation">
-  <div class="container">
-    <div class="verse">
-      <p class="heb">חֲנֹךְ לַנַּעַר עַל פִּי דַרְכּוֹ · גַּם כִּי יַזְקִין לֹא יָסוּר מִמֶּנָּה</p>
-      <p class="translation">Train a child according to his way; even when he is old, he will not depart from it.</p>
-      <cite>Mishlei 22:6</cite>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     A STRONG FOUNDATION — Split
-     ============================================================ -->
-<section data-screen-label="Foundation Split">
-  <div class="container">
-    <div class="split">
-      <div class="copy">
-        <span class="eyebrow">A Strong Foundation</span>
-        <h2>The early years are the foundation for everything that follows.</h2>
-        <p>In Chabad chinuch, this stage is understood not only for what a child learns, but for the steady approach to learning, behavior, and routine that he or she carries forward.</p>
-        <p>Our work at Pre-1A is to build that approach quietly and consistently — so the child arrives at first grade prepared, settled, and ready to grow.</p>
-      </div>
-      <div class="figure-frame">
-        <image-slot id="home-foundation" placeholder="Photo of a child learning, hands at work, or a classroom corner"></image-slot>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     PILLARS — The Approach
-     ============================================================ -->
-<section style="background: var(--bg-alt);" data-screen-label="Approach">
-  <div class="container">
-    <div class="section-head">
-      <span class="eyebrow">The Approach</span>
-      <h2>Three guiding principles in the classroom.</h2>
-      <p class="lede">Alongside structure, the environment is warm and respectful — allowing each child to feel comfortable while being guided with clear expectations.</p>
-    </div>
-    <div class="pillars">
-      <article class="pillar">
-        <div class="heb">סֵדֶר</div>
-        <h3>Structure</h3>
-        <p>A consistent rhythm to the day. Children learn what comes next and settle into the routine.</p>
-      </article>
-      <article class="pillar">
-        <div class="heb">בְּהִירוּת</div>
-        <h3>Clarity</h3>
-        <p>Clear expectations, clearly given. Each child understands what is being asked and is set up to succeed.</p>
-      </article>
-      <article class="pillar">
-        <div class="heb">עַקְבִיּוּת</div>
-        <h3>Consistency</h3>
-        <p>The same calm direction, day after day — the approach found in established Chabad מוסדות.</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     STATS / At a glance
-     ============================================================ -->
-<section class="tight" data-screen-label="At a Glance">
-  <div class="container">
-    <div class="stat-row">
-      <div class="stat">
-        <div class="num">1</div>
-        <div class="label">Pre-1A class</div>
-      </div>
-      <div class="stat">
-        <div class="num">13</div>
-        <div class="label">Students max</div>
-      </div>
-      <div class="stat">
-        <div class="num">2</div>
-        <div class="label">Experienced Morahs</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     LEARNING FOCUS — Split (image left)
-     ============================================================ -->
-<section data-screen-label="Learning Focus">
-  <div class="container">
-    <div class="split image-left">
-      <div class="copy">
-        <span class="eyebrow">Learning Focus</span>
-        <h2>Building a proper approach to learning from the very start.</h2>
-        <ul class="feature-list">
-          <li>Foundational <span class="heb">לימודי קודש</span></li>
-          <li>Early development of learning habits</li>
-          <li>Focus on middos and behavior</li>
-          <li>A balanced structure of learning and play</li>
-        </ul>
-        <p style="margin-top: var(--s-5);">At the Pre-1A stage, the program focuses on establishing strong foundational skills within the core curriculum. English language skills are introduced at the appropriate stage in a child's development, based on guidance from experienced educators.</p>
-      </div>
-      <div class="figure-frame frame-right">
-        <image-slot id="home-learning" placeholder="Photo of letter chart, Alef-Beis, or learning materials"></image-slot>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     STAFF preview
-     ============================================================ -->
-<section style="background: var(--bg-alt);" data-screen-label="Staff Preview">
-  <div class="container">
-    <div class="section-head">
-      <span class="eyebrow">Our Staff</span>
-      <h2>Two experienced Morahs leading every day.</h2>
-      <p class="lede">Both bring extensive experience in early childhood education and have worked with children at this stage of development, within both local and established educational settings.</p>
-    </div>
-    <div class="staff-grid">
-      <article class="staff-card">
-        <div class="staff-portrait">
-          <image-slot id="staff-katz-home" placeholder="Portrait of Mrs. Chaya Katz"></image-slot>
-        </div>
-        <div>
-          <h3 class="name">Mrs. Chaya Katz</h3>
-          <p class="role">Lead Morah</p>
-          <p>Many years of experience in early childhood settings, with prior Pre-1A teaching at an established educational setting. Known for a calm, organized, and well-structured classroom.</p>
-        </div>
-      </article>
-      <article class="staff-card">
-        <div class="staff-portrait">
-          <image-slot id="staff-schurder-home" placeholder="Portrait of Mrs. Mattie Schurder"></image-slot>
-        </div>
-        <div>
-          <h3 class="name">Mrs. Mattie Schurder</h3>
-          <p class="role">Morah</p>
-          <p>Experience with children in the years leading into Pre-1A, helping them build readiness for structured classroom learning. Warm, attentive, and consistent.</p>
-        </div>
-      </article>
-    </div>
-    <p style="text-align: center; margin-top: var(--s-7);">
-      <a class="btn btn-ghost" href="staff.html">Meet the Staff <span class="arrow">→</span></a>
-    </p>
-  </div>
-</section>
-
-<!-- ============================================================
-     CTA banner — Enrollment
-     ============================================================ -->
-<section class="cta-banner" data-screen-label="Enroll CTA">
-  <div class="container-mid">
-    <span class="heb">הרשמה פתוחה</span>
-    <h2>Enrollment is open for the upcoming school year.</h2>
-    <p>Spots are limited and will be filled carefully. We invite you to begin the conversation.</p>
-    <div class="hero-ctas" style="justify-content: center; display: flex; gap: var(--s-4); flex-wrap: wrap;">
-      <a class="btn btn-primary" style="background: var(--gold); color: var(--navy-ink);" href="enrollment.html">
-        Apply for Pre-1A
-        <span class="arrow">→</span>
-      </a>
-      <a class="btn btn-secondary" href="contact.html">Contact Us</a>
-    </div>
-  </div>
-</section>
-
-<div data-site-footer></div>
-
-<script src="image-slot.js"></script>
-<script src="site.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="widgets.jsx"></script>
+<script type="text/babel" src="chrome.jsx"></script>
+<script type="text/babel" src="pages-home.jsx"></script>
+<script type="text/babel" src="pages-rest.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
 </body>
 </html>
