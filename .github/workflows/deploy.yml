@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare Workers
+name: Deploy to Cloudflare Pages
 
 on:
   push:
@@ -14,7 +14,10 @@ jobs:
         run: |
           ACCOUNT_ID=$(curl -s "https://api.cloudflare.com/client/v4/accounts" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id')
-          echo "Deploying to account: $ACCOUNT_ID"
-          npx wrangler@latest deploy --account-id=$ACCOUNT_ID
+          echo "Account ID: $ACCOUNT_ID"
+          npx wrangler@latest pages deploy ./ \
+            --project-name=chederinverrary \
+            --account-id=$ACCOUNT_ID \
+            --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
