@@ -1,0 +1,5 @@
+# GOOD emails — bulk allowlist (real leads / customers / partners).
+# One entry per line. A bare "@domain.com" allows the whole domain.
+# Lines starting with "#" are comments. Addresses are lowercased.
+# This file holds the LARGE volume; annotated entries with reasons live
+# in email-database.json. Load 500k+ here via scripts/ingest-emails.mjs.
