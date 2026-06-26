@@ -1,0 +1,17 @@
+# Cloudflare Workers — static-asset deploy for this site.
+#
+# This repo is a plain static site (index.html + in-browser JSX + images +
+# the email-db tool and its data files). There is no build step, so the
+# Worker just serves the repository directory as static assets. This makes
+# the "Workers Builds" Git integration succeed instead of failing with
+# "no config found".
+#
+# `name` matches the existing Cloudflare service so it deploys in place.
+name = "chederinverrary"
+compatibility_date = "2026-06-26"
+
+# Assets-only Worker (no `main`): serve files straight from the repo root.
+# index.html is served at "/", and email-db.html fetches data/*.txt and
+# data/email-database.json via their relative paths.
+[assets]
+directory = "."
