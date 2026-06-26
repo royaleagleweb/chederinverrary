@@ -20,6 +20,7 @@
   button,.btn{font:inherit;cursor:pointer;border:1px solid var(--hairline);background:var(--surface);
     color:var(--ink);padding:8px 14px;border-radius:8px}
   button:hover{border-color:var(--muted)}
+  button:disabled{opacity:.5;cursor:default}
   .btn-primary{background:var(--terracotta);border-color:var(--terracotta);color:#fff}
   .btn-primary:hover{background:var(--terracotta-deep);border-color:var(--terracotta-deep)}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
@@ -42,10 +43,11 @@
   .verdict small{display:block;font-weight:400;color:var(--ink-soft);margin-top:4px}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hairline);vertical-align:top}
-  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);cursor:pointer;white-space:nowrap}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
   tr:hover td{background:rgba(0,0,0,.02)}
   .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600}
   .pill.bad{background:#f6e2d6;color:var(--bad)} .pill.good{background:#dde8e3;color:var(--good)}
+  .pill.bulk{background:var(--sand);color:var(--ink-soft)}
   .del{color:var(--muted);border:none;background:none;padding:2px 6px;font-size:16px}
   .del:hover{color:var(--bad)}
   .muted{color:var(--muted);font-size:13px}
@@ -55,27 +57,27 @@
   .notice{font-size:13px;color:var(--muted);margin:10px 0}
   .hidden{display:none}
   code{background:var(--sand);padding:1px 5px;border-radius:4px;font-size:.92em}
+  .pager{display:flex;gap:8px;align-items:center;margin-top:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Email Database</h1>
-    <p>Bad (spam / blocklist) &amp; good (legit / allowlist) emails — check, add, search, compare.</p>
+    <p>Bad (spam / blocklist) &amp; good (legit / allowlist) emails — check, add, search, compare. Built to scale to 500k+.</p>
   </header>
 
   <div class="bar">
-    <button class="btn-primary" id="btnExport">⬇ Export JSON</button>
-    <button id="btnCopy">⧉ Copy JSON</button>
-    <label class="btn" style="margin:0">⬆ Import JSON<input id="fileImport" type="file" accept="application/json" class="hidden"></label>
-    <button id="btnReload">↻ Reload from file</button>
+    <button class="btn-primary" id="btnExport">⬇ Export my additions</button>
+    <button id="btnCopy">⧉ Copy additions</button>
+    <button id="btnReload">↻ Reload from files</button>
     <span class="muted" id="status" style="align-self:center"></span>
   </div>
 
   <div class="stats">
     <div class="stat bad"><div class="n" id="cBad">0</div><div class="l">Bad emails</div></div>
     <div class="stat good"><div class="n" id="cGood">0</div><div class="l">Good emails</div></div>
-    <div class="stat"><div class="n" id="cDomains">0</div><div class="l">Unique domains</div></div>
+    <div class="stat"><div class="n" id="cAnnotated">0</div><div class="l">Annotated</div></div>
     <div class="stat"><div class="n" id="cConflict">0</div><div class="l">Conflicts</div></div>
   </div>
 
@@ -107,7 +109,9 @@
       <div class="grow"><label>Reason / note</label><input id="addReason" style="width:100%" placeholder="optional"></div>
       <button class="btn-primary" id="btnAdd">Add</button>
     </div>
-    <div class="notice">Tip: leave the local part blank and enter just <code>@domain.com</code> to block/allow an entire domain.</div>
+    <div class="notice">Tip: leave the local part blank and enter just <code>@domain.com</code> to block/allow an entire domain.
+      Adds are saved in this browser as “pending”; click <b>Export my additions</b> to commit them.
+      For bulk loads (thousands at once) use <code>scripts/ingest-emails.mjs</code> instead.</div>
   </div>
 
   <!-- COMPARE -->
@@ -123,191 +127,301 @@
       <button data-tab="good">Good</button>
     </div>
     <div class="row" style="margin-bottom:10px">
-      <input id="search" class="grow" style="width:100%" placeholder="Search email, domain, category, reason…">
+      <input id="search" class="grow" style="width:100%" placeholder="Search this list (email, domain, category, reason)…">
     </div>
     <table>
       <thead><tr>
-        <th data-sort="email">Email</th><th data-sort="category">Category</th>
-        <th data-sort="reason">Reason</th><th data-sort="addedAt">Added</th><th></th>
+        <th>Email</th><th>Category</th><th>Reason</th><th>Added</th><th></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <p class="muted" id="emptyMsg"></p>
+    <div class="pager hidden" id="pager">
+      <button id="prevPage">‹ Prev</button>
+      <span class="muted" id="pageInfo"></span>
+      <button id="nextPage">Next ›</button>
+    </div>
   </div>
 </div>
 
 <script>
-const DATA_URL = "data/email-database.json";
-const LS_KEY = "emailDb.working";
-let db = { meta:{}, bad:[], good:[] };
+// ---------------------------------------------------------------------------
+// Scalable design for 500k+ entries:
+//   * Bulk lists (data/bad-emails.txt, good-emails.txt) -> Set for O(1) checks.
+//   * Annotated entries (data/email-database.json) -> small Map for reasons.
+//   * Manual adds -> "pending" delta only, kept tiny in localStorage.
+//   * Browsing is paginated; search results are capped. Never render 500k rows.
+// ---------------------------------------------------------------------------
+const JSON_URL = "data/email-database.json";
+const BULK_URL = { bad: "data/bad-emails.txt", good: "data/good-emails.txt" };
+const LS_KEY = "emailDb.pending";          // only the small delta lives here
+const PAGE_SIZE = 100;
+const SEARCH_CAP = 500;                     // max rows scanned out per search
+
+// Source of truth for membership + counts (keys: "email" or "@domain")
+const allBad = new Set(), allGood = new Set();
+// Annotated entries only (browsable, have reasons). key -> {list,email,domain,category,reason,source,addedAt}
+const info = new Map();
+// Pending manual adds (the delta the user will export). key -> entry
+let pending = { bad: {}, good: {} };
+
 let activeTab = "bad";
-let sortKey = "addedAt", sortDir = -1;
+let page = 0;
+let metaFromFile = {};
 
 const $ = s => document.querySelector(s);
 const todayISO = () => new Date().toISOString().slice(0,10);
 const norm = s => (s||"").trim().toLowerCase();
 const domainOf = e => { const a = norm(e); return a.includes("@") ? a.split("@").pop() : a.replace(/^@/,""); };
-
+const keyOf = (email, domain) => norm(email) ? norm(email) : "@" + norm(domain);
+const fmt = n => n.toLocaleString();
 function setStatus(msg){ $("#status").textContent = msg; }
 
-async function load(){
-  const saved = localStorage.getItem(LS_KEY);
-  if (saved){
-    try { db = JSON.parse(saved); setStatus("loaded your local working copy"); render(); return; }
-    catch(e){ /* fall through */ }
-  }
-  await reloadFromFile();
-}
-async function reloadFromFile(){
-  try{
-    const r = await fetch(DATA_URL, {cache:"no-store"});
-    if(!r.ok) throw new Error(r.status);
-    db = await r.json();
-    db.bad = db.bad||[]; db.good = db.good||[];
-    setStatus("loaded from " + DATA_URL);
-  }catch(e){
-    setStatus("could not fetch file (open via the website, or Import a JSON file)");
-    db.bad = db.bad||[]; db.good = db.good||[];
-  }
+// ---- loading ---------------------------------------------------------------
+async function loadAll(){
+  allBad.clear(); allGood.clear(); info.clear();
+  metaFromFile = {};
+  await Promise.all([ loadJson(), loadBulk("bad"), loadBulk("good") ]);
+  loadPending();
   render();
 }
-function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
 
-function findMatches(query){
+async function loadJson(){
+  try{
+    const r = await fetch(JSON_URL, {cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    metaFromFile = j.meta || {};
+    for (const list of ["bad","good"]) {
+      (j[list]||[]).forEach(x => addEntry(list, x, /*annotated*/true));
+    }
+  }catch(e){ /* fine if missing; bulk lists may still load */ }
+}
+
+async function loadBulk(list){
+  try{
+    const r = await fetch(BULK_URL[list], {cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    const text = await r.text();
+    const target = list === "bad" ? allBad : allGood;
+    let start = 0;
+    // Parse line-by-line without building a giant array of objects.
+    while (start < text.length) {
+      let nl = text.indexOf("\n", start);
+      if (nl === -1) nl = text.length;
+      const line = text.slice(start, nl).trim();
+      start = nl + 1;
+      if (!line || line[0] === "#") continue;
+      target.add(norm(line));
+    }
+  }catch(e){ /* fine if missing */ }
+}
+
+// Register an entry into the membership Sets (+info if annotated).
+function addEntry(list, x, annotated){
+  const email = norm(x.email).startsWith("@") ? "" : norm(x.email);
+  const domain = norm(x.domain) || domainOf(email);
+  const k = keyOf(email, domain);
+  (list === "bad" ? allBad : allGood).add(k);
+  if (annotated) info.set(list + "|" + k, { list, email, domain,
+    category: x.category||"", reason: x.reason||"", source: x.source||"", addedAt: x.addedAt||"" });
+  return k;
+}
+
+function loadPending(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (saved && saved.bad && saved.good) pending = saved;
+  }catch(e){ pending = { bad:{}, good:{} }; }
+  for (const list of ["bad","good"]) {
+    Object.values(pending[list]).forEach(x => addEntry(list, x, true));
+  }
+}
+function persistPending(){ localStorage.setItem(LS_KEY, JSON.stringify(pending)); }
+
+// ---- check (O(1) membership) ----------------------------------------------
+function lookup(query){
   const q = norm(query); if(!q) return null;
   const dom = domainOf(q);
-  const scan = list => db[list].filter(x =>
-    norm(x.email) === q || (x.domain && norm(x.domain) === dom && !q.includes("@") ) ||
-    (x.domain && norm(x.domain) === dom) );
-  return { bad: scan("bad"), good: scan("good"), domain: dom };
+  const keys = [];
+  if (q.includes("@") && !q.startsWith("@")) keys.push(q);   // exact address
+  keys.push("@" + dom);                                       // whole-domain rule
+  const hit = (set) => keys.find(k => set.has(k)) || null;
+  const bKey = hit(allBad), gKey = hit(allGood);
+  const reason = (k) => info.get("bad|"+k) || info.get("good|"+k) || null;
+  return { bad: bKey, good: gKey, domain: dom,
+           badInfo: bKey ? reason(bKey) : null, goodInfo: gKey ? reason(gKey) : null };
 }
 
 function check(){
   const v = $("#verdict");
-  const m = findMatches($("#checkInput").value);
+  const m = lookup($("#checkInput").value);
   if(!m){ v.className="verdict"; return; }
   v.classList.add("show");
-  if(m.bad.length){
+  if(m.bad){
     v.className = "verdict show v-bad";
-    v.innerHTML = "⛔ BAD — on the blocklist" + reasonLine(m.bad);
-  } else if(m.good.length){
+    v.innerHTML = "⛔ BAD — on the blocklist" + reasonLine(m.bad, m.badInfo);
+  } else if(m.good){
     v.className = "verdict show v-good";
-    v.innerHTML = "✓ GOOD — on the allowlist" + reasonLine(m.good);
+    v.innerHTML = "✓ GOOD — on the allowlist" + reasonLine(m.good, m.goodInfo);
   } else {
     v.className = "verdict show v-unknown";
     v.innerHTML = "? UNKNOWN — not in either list <small>No match for this address or its domain (" + m.domain + ").</small>";
   }
 }
-function reasonLine(hits){
-  const h = hits[0];
-  const how = norm(h.email) ? "exact address" : "domain rule";
-  return "<small>Matched by " + how + (h.category?(" · "+h.category):"") + (h.reason?(" · "+h.reason):"") + "</small>";
+function reasonLine(key, meta){
+  const how = key.startsWith("@") ? "domain rule" : "exact address";
+  if (!meta) return "<small>Matched by " + how + " · (bulk list, no note)</small>";
+  return "<small>Matched by " + how + (meta.category?(" · "+meta.category):"") + (meta.reason?(" · "+meta.reason):"") + "</small>";
 }
 
-function addEntry(){
+// ---- add -------------------------------------------------------------------
+function add(){
   const list = $("#addList").value;
-  let email = norm($("#addEmail").value);
-  if(!email){ alert("Enter an email or @domain."); return; }
-  const entry = {
-    email: email.startsWith("@") ? "" : email,
-    domain: domainOf(email),
-    category: $("#addCategory").value.trim(),
-    reason: $("#addReason").value.trim(),
-    source: "manual",
-    addedAt: todayISO()
-  };
-  const dupe = db[list].find(x => norm(x.email)===entry.email && norm(x.domain)===entry.domain);
-  if(dupe){ alert("Already in the " + list + " list."); return; }
-  db[list].unshift(entry);
-  persist();
+  let raw = norm($("#addEmail").value);
+  if(!raw){ alert("Enter an email or @domain."); return; }
+  const email = raw.startsWith("@") ? "" : raw;
+  const domain = domainOf(raw);
+  const k = keyOf(email, domain);
+  if ((list==="bad"?allBad:allGood).has(k)) { alert("Already on the " + list + " list."); return; }
+  const entry = { email, domain, category: $("#addCategory").value.trim(),
+    reason: $("#addReason").value.trim(), source: "manual", addedAt: todayISO() };
+  pending[list][k] = entry;
+  addEntry(list, entry, true);
+  persistPending();
   $("#addEmail").value=$("#addCategory").value=$("#addReason").value="";
-  setStatus("added to " + list + " · remember to Export and commit");
+  setStatus("added to " + list + " (pending) · Export my additions to commit");
   render();
 }
 
-function removeEntry(list, idx){
-  if(!confirm("Remove this entry?")) return;
-  db[list].splice(idx,1); persist(); setStatus("removed · remember to Export"); render();
+function removePending(list, k){
+  if(!confirm("Remove this pending entry?")) return;
+  delete pending[list][k];
+  // rebuild membership/info from scratch is simplest & safe at our annotated scale
+  persistPending();
+  loadAll();
+  setStatus("removed pending entry");
 }
 
+// ---- conflicts (intersection of the two Sets, capped display) --------------
 function computeConflicts(){
-  const badSet = new Map(), out=[];
-  db.bad.forEach(x => badSet.set(norm(x.email)||("@"+norm(x.domain)), x));
-  db.good.forEach(g => {
-    const k = norm(g.email)||("@"+norm(g.domain));
-    if(badSet.has(k)) out.push(k.replace(/^@/,"")+" (in BOTH lists)");
-  });
+  const [small, big] = allBad.size <= allGood.size ? [allBad, allGood] : [allGood, allBad];
+  const out = [];
+  for (const k of small) { if (big.has(k)) { out.push(k.replace(/^@/,"")); if (out.length >= 50) break; } }
   return out;
 }
 
+// ---- render (paginated browse of ANNOTATED entries; search can scan bulk) --
+function annotatedRows(list){
+  return [...info.values()].filter(e => e.list === list);
+}
+
+function searchBulk(list, q){
+  // Scan the big Set for substring matches, capped so we never freeze.
+  const set = list === "bad" ? allBad : allGood;
+  const rows = []; let scanned = 0;
+  for (const k of set) {
+    scanned++;
+    if (k.includes(q)) {
+      const isDom = k.startsWith("@");
+      rows.push({ email: isDom ? "" : k, domain: isDom ? k.slice(1) : domainOf(k),
+        category:"", reason:"", addedAt:"", bulk:true, list });
+      if (rows.length >= SEARCH_CAP) break;
+    }
+  }
+  return rows;
+}
+
 function render(){
-  $("#cBad").textContent = db.bad.length;
-  $("#cGood").textContent = db.good.length;
-  const doms = new Set([...db.bad,...db.good].map(x=>norm(x.domain)).filter(Boolean));
-  $("#cDomains").textContent = doms.size;
+  $("#cBad").textContent = fmt(allBad.size);
+  $("#cGood").textContent = fmt(allGood.size);
+  $("#cAnnotated").textContent = fmt(info.size);
   const conflicts = computeConflicts();
-  $("#cConflict").textContent = conflicts.length;
+  $("#cConflict").textContent = fmt(conflicts.length) + (conflicts.length>=50 ? "+" : "");
   $("#conflicts").innerHTML = conflicts.length
-    ? conflicts.map(c=>'<div class="conflict">⚠ '+c+' — review which list is correct.</div>').join("")
-    : '<p class="muted">No conflicts. No email appears in both lists.</p>';
+    ? conflicts.map(c=>'<div class="conflict">⚠ '+c+' — in BOTH lists; review which is correct.</div>').join("")
+    : '<p class="muted">No conflicts found between the bad and good lists.</p>';
 
   const q = norm($("#search").value);
-  let rows = db[activeTab].map((x,i)=>({x,i}))
-    .filter(({x})=> !q || [x.email,x.domain,x.category,x.reason].some(f=>norm(f).includes(q)));
-  rows.sort((a,b)=>{
-    const av=norm(a.x[sortKey]), bv=norm(b.x[sortKey]);
-    return av<bv?-sortDir:av>bv?sortDir:0;
-  });
-  $("#tbody").innerHTML = rows.map(({x,i})=>`
-    <tr>
-      <td><span class="pill ${activeTab}">${activeTab}</span> ${x.email||"<em>(any)</em> @"+x.domain}</td>
-      <td>${x.category||""}</td><td>${x.reason||""}</td><td class="muted">${x.addedAt||""}</td>
-      <td><button class="del" title="Remove" onclick="removeEntry('${activeTab}',${i})">✕</button></td>
-    </tr>`).join("");
-  $("#emptyMsg").textContent = rows.length ? "" :
-    (db[activeTab].length ? "No matches for this search." : "This list is empty — add an entry above.");
+  let rows, note;
+  if (q) {
+    // Search: annotated matches first, then fill from the bulk list, capped.
+    const ann = annotatedRows(activeTab).filter(e =>
+      [e.email,e.domain,e.category,e.reason].some(f=>norm(f).includes(q)));
+    const bulk = searchBulk(activeTab, q).filter(b => !info.has(activeTab+"|"+keyOf(b.email,b.domain)));
+    rows = ann.concat(bulk).slice(0, SEARCH_CAP);
+    note = "Showing " + rows.length + (rows.length>=SEARCH_CAP ? "+ (capped)" : "") + " matches for “"+q+"”.";
+    $("#pager").classList.add("hidden");
+  } else {
+    // Browse: only annotated entries, paginated. Bulk lists are too big to page.
+    const all = annotatedRows(activeTab).sort((a,b)=> (b.addedAt||"").localeCompare(a.addedAt||""));
+    const total = all.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (page >= pages) page = pages - 1;
+    rows = all.slice(page*PAGE_SIZE, page*PAGE_SIZE + PAGE_SIZE);
+    const bulkN = (activeTab==="bad"?allBad:allGood).size - total;
+    note = total
+      ? "Annotated " + activeTab + " entries " + (page*PAGE_SIZE+1) + "–" + (page*PAGE_SIZE+rows.length) + " of " + fmt(total)
+        + (bulkN>0 ? " · plus " + fmt(bulkN) + " bulk entries (search to find them)." : "")
+      : (bulkN>0 ? fmt(bulkN) + " bulk " + activeTab + " entries — use search to look one up."
+                 : "This list is empty — add an entry above.");
+    $("#pager").classList.toggle("hidden", pages <= 1);
+    $("#pageInfo").textContent = "Page " + (page+1) + " / " + pages;
+    $("#prevPage").disabled = page <= 0;
+    $("#nextPage").disabled = page >= pages-1;
+  }
+
+  $("#tbody").innerHTML = rows.map(x => {
+    const k = keyOf(x.email, x.domain);
+    const isPending = pending[x.list] && pending[x.list][k];
+    const label = x.bulk ? '<span class="pill bulk">bulk</span>' : '<span class="pill '+x.list+'">'+x.list+'</span>';
+    const who = x.email || "<em>(any)</em> @" + x.domain;
+    const del = isPending
+      ? '<button class="del" title="Remove pending" onclick="removePending(\''+x.list+'\',\''+k.replace(/'/g,"\\'")+'\')">✕</button>'
+      : '';
+    return "<tr><td>"+label+" "+who+"</td><td>"+(x.category||"")+"</td><td>"+(x.reason||"")
+         +"</td><td class='muted'>"+(x.addedAt||"")+(isPending?" · pending":"")+"</td><td>"+del+"</td></tr>";
+  }).join("");
+  $("#emptyMsg").textContent = note;
 }
 
+// ---- export (only the pending delta) --------------------------------------
+function pendingPayload(){
+  const out = { meta: { exportedAt: todayISO(), note: "Pending additions — merge into data/email-database.json or ingest into the bulk lists." },
+                bad: Object.values(pending.bad), good: Object.values(pending.good) };
+  return out;
+}
 function exportJson(){
-  db.meta = db.meta||{}; db.meta.updatedAt = todayISO();
-  const blob = new Blob([JSON.stringify(db,null,2)], {type:"application/json"});
+  const n = Object.keys(pending.bad).length + Object.keys(pending.good).length;
+  if(!n){ setStatus("no pending additions to export"); return; }
+  const blob = new Blob([JSON.stringify(pendingPayload(),null,2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = "email-database.json"; a.click();
-  setStatus("exported — commit this file to data/email-database.json");
+  a.href = URL.createObjectURL(blob); a.download = "email-additions.json"; a.click();
+  setStatus("exported "+n+" additions — hand to Claude or merge into the data files");
 }
 async function copyJson(){
-  db.meta = db.meta||{}; db.meta.updatedAt = todayISO();
-  await navigator.clipboard.writeText(JSON.stringify(db,null,2));
-  setStatus("JSON copied to clipboard");
-}
-function importJson(file){
-  const r = new FileReader();
-  r.onload = () => { try{
-    const j = JSON.parse(r.result); j.bad=j.bad||[]; j.good=j.good||[];
-    db = j; persist(); setStatus("imported "+file.name); render();
-  }catch(e){ alert("Not valid JSON: "+e.message); } };
-  r.readAsText(file);
+  await navigator.clipboard.writeText(JSON.stringify(pendingPayload(),null,2));
+  setStatus("pending additions copied to clipboard");
 }
 
-// wire up
+// ---- wire up ---------------------------------------------------------------
 $("#btnCheck").onclick = check;
 $("#checkInput").addEventListener("keydown", e=>{ if(e.key==="Enter") check(); });
-$("#btnAdd").onclick = addEntry;
+$("#btnAdd").onclick = add;
 $("#btnExport").onclick = exportJson;
 $("#btnCopy").onclick = copyJson;
-$("#btnReload").onclick = ()=>{ if(confirm("Discard your local working copy and reload the committed file?")){ localStorage.removeItem(LS_KEY); reloadFromFile(); } };
-$("#fileImport").onchange = e=>{ if(e.target.files[0]) importJson(e.target.files[0]); };
-$("#search").addEventListener("input", render);
+$("#btnReload").onclick = ()=>{ setStatus("reloading…"); loadAll(); };
+let searchTimer;
+$("#search").addEventListener("input", ()=>{ clearTimeout(searchTimer); page=0; searchTimer=setTimeout(render,120); });
+$("#prevPage").onclick = ()=>{ if(page>0){ page--; render(); } };
+$("#nextPage").onclick = ()=>{ page++; render(); };
 document.querySelectorAll(".tabs button").forEach(b=> b.onclick=()=>{
-  activeTab=b.dataset.tab;
+  activeTab=b.dataset.tab; page=0;
   document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x===b));
   render();
 });
-document.querySelectorAll("th[data-sort]").forEach(th=> th.onclick=()=>{
-  const k=th.dataset.sort; sortDir = (sortKey===k)? -sortDir : 1; sortKey=k; render();
-});
 
-load();
+loadAll();
 </script>
 </body>
 </html>
