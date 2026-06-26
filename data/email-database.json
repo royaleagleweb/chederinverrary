@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "name": "SoFlo Bathroom Remodel — Email Database",
+    "description": "Master list of bad (spam/blocklist) and good (legit lead/customer/allowlist) emails. Used for spam filtering, email validation, lead-quality tracking, and as labeled training data.",
+    "schemaVersion": 1,
+    "updatedAt": "2026-06-26",
+    "fields": {
+      "email": "Full email address, lowercased (e.g. \"jane@example.com\"). Optional if 'domain' is set for a whole-domain rule.",
+      "domain": "Domain only, lowercased (e.g. \"example.com\"). Use for blocking/allowing an entire domain.",
+      "category": "Free-form bucket. Bad: spam | phishing | disposable | bot | competitor. Good: lead | customer | partner | vendor.",
+      "reason": "Short human note on why it's on this list.",
+      "source": "Where it came from (e.g. \"contact form\", \"manual\", \"import\").",
+      "addedAt": "Date added, YYYY-MM-DD."
+    }
+  },
+  "bad": [
+    {
+      "email": "example-spammer@mailinator.com",
+      "domain": "mailinator.com",
+      "category": "disposable",
+      "reason": "EXAMPLE ENTRY — disposable/throwaway domain. Replace with real data.",
+      "source": "manual",
+      "addedAt": "2026-06-26"
+    }
+  ],
+  "good": [
+    {
+      "email": "example-customer@gmail.com",
+      "domain": "gmail.com",
+      "category": "customer",
+      "reason": "EXAMPLE ENTRY — confirmed past customer. Replace with real data.",
+      "source": "manual",
+      "addedAt": "2026-06-26"
+    }
+  ]
+}

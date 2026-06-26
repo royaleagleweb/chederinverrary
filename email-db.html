@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Email Database — Bad &amp; Good</title>
+<style>
+  :root{
+    --bg:#F5EFE6; --surface:#FAF6EE; --sand:#EBE2D2; --ink:#1F1A14; --ink-soft:#4A4239;
+    --muted:#8A7F70; --hairline:#E0D5C2; --terracotta:#C76A3F; --terracotta-deep:#9E4F2C;
+    --ocean:#1F3A3D; --ocean-2:#2C5658; --bad:#9E4F2C; --good:#1F3A3D;
+    --f-sans:"Inter","Helvetica Neue",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-sans);line-height:1.45}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+  header h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+  header p{margin:0;color:var(--muted);font-size:14px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 22px}
+  button,.btn{font:inherit;cursor:pointer;border:1px solid var(--hairline);background:var(--surface);
+    color:var(--ink);padding:8px 14px;border-radius:8px}
+  button:hover{border-color:var(--muted)}
+  .btn-primary{background:var(--terracotta);border-color:var(--terracotta);color:#fff}
+  .btn-primary:hover{background:var(--terracotta-deep);border-color:var(--terracotta-deep)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+  .stat{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;padding:14px 16px}
+  .stat .n{font-size:28px;font-weight:700;line-height:1}
+  .stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+  .stat.bad .n{color:var(--bad)} .stat.good .n{color:var(--good)}
+  .card{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;padding:18px;margin-bottom:18px}
+  .card h2{margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input,select{font:inherit;padding:8px 10px;border:1px solid var(--hairline);border-radius:8px;background:#fff;color:var(--ink);min-width:0}
+  input:focus,select:focus{outline:2px solid var(--terracotta);outline-offset:-1px}
+  .grow{flex:1 1 200px}
+  .verdict{margin-top:12px;padding:12px 14px;border-radius:10px;font-weight:600;display:none}
+  .verdict.show{display:block}
+  .verdict.v-bad{background:#f6e2d6;color:var(--bad)}
+  .verdict.v-good{background:#dde8e3;color:var(--good)}
+  .verdict.v-unknown{background:var(--sand);color:var(--ink-soft)}
+  .verdict small{display:block;font-weight:400;color:var(--ink-soft);margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);cursor:pointer;white-space:nowrap}
+  tr:hover td{background:rgba(0,0,0,.02)}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600}
+  .pill.bad{background:#f6e2d6;color:var(--bad)} .pill.good{background:#dde8e3;color:var(--good)}
+  .del{color:var(--muted);border:none;background:none;padding:2px 6px;font-size:16px}
+  .del:hover{color:var(--bad)}
+  .muted{color:var(--muted);font-size:13px}
+  .tabs{display:flex;gap:4px;margin-bottom:12px}
+  .tabs button.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .conflict{background:#fbeede;border:1px solid #e7c9a8;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:14px}
+  .notice{font-size:13px;color:var(--muted);margin:10px 0}
+  .hidden{display:none}
+  code{background:var(--sand);padding:1px 5px;border-radius:4px;font-size:.92em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Email Database</h1>
+    <p>Bad (spam / blocklist) &amp; good (legit / allowlist) emails — check, add, search, compare.</p>
+  </header>
+
+  <div class="bar">
+    <button class="btn-primary" id="btnExport">⬇ Export JSON</button>
+    <button id="btnCopy">⧉ Copy JSON</button>
+    <label class="btn" style="margin:0">⬆ Import JSON<input id="fileImport" type="file" accept="application/json" class="hidden"></label>
+    <button id="btnReload">↻ Reload from file</button>
+    <span class="muted" id="status" style="align-self:center"></span>
+  </div>
+
+  <div class="stats">
+    <div class="stat bad"><div class="n" id="cBad">0</div><div class="l">Bad emails</div></div>
+    <div class="stat good"><div class="n" id="cGood">0</div><div class="l">Good emails</div></div>
+    <div class="stat"><div class="n" id="cDomains">0</div><div class="l">Unique domains</div></div>
+    <div class="stat"><div class="n" id="cConflict">0</div><div class="l">Conflicts</div></div>
+  </div>
+
+  <!-- CHECK -->
+  <div class="card">
+    <h2>Check an email</h2>
+    <div class="row">
+      <div class="grow">
+        <label for="checkInput">Email or domain to look up</label>
+        <input id="checkInput" class="grow" style="width:100%" placeholder="someone@example.com" autocomplete="off">
+      </div>
+      <button class="btn-primary" id="btnCheck">Check</button>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <!-- ADD -->
+  <div class="card">
+    <h2>Add an entry</h2>
+    <div class="row">
+      <div><label>List</label>
+        <select id="addList"><option value="bad">Bad</option><option value="good">Good</option></select></div>
+      <div class="grow"><label>Email</label><input id="addEmail" style="width:100%" placeholder="name@domain.com"></div>
+      <div><label>Category</label><input id="addCategory" placeholder="spam / lead / customer…" list="catList">
+        <datalist id="catList">
+          <option value="spam"><option value="phishing"><option value="disposable"><option value="bot"><option value="competitor">
+          <option value="lead"><option value="customer"><option value="partner"><option value="vendor">
+        </datalist></div>
+      <div class="grow"><label>Reason / note</label><input id="addReason" style="width:100%" placeholder="optional"></div>
+      <button class="btn-primary" id="btnAdd">Add</button>
+    </div>
+    <div class="notice">Tip: leave the local part blank and enter just <code>@domain.com</code> to block/allow an entire domain.</div>
+  </div>
+
+  <!-- COMPARE -->
+  <div class="card" id="conflictCard">
+    <h2>Compare &amp; conflicts</h2>
+    <div id="conflicts"></div>
+  </div>
+
+  <!-- LIST -->
+  <div class="card">
+    <div class="tabs">
+      <button data-tab="bad" class="active">Bad</button>
+      <button data-tab="good">Good</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <input id="search" class="grow" style="width:100%" placeholder="Search email, domain, category, reason…">
+    </div>
+    <table>
+      <thead><tr>
+        <th data-sort="email">Email</th><th data-sort="category">Category</th>
+        <th data-sort="reason">Reason</th><th data-sort="addedAt">Added</th><th></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p class="muted" id="emptyMsg"></p>
+  </div>
+</div>
+
+<script>
+const DATA_URL = "data/email-database.json";
+const LS_KEY = "emailDb.working";
+let db = { meta:{}, bad:[], good:[] };
+let activeTab = "bad";
+let sortKey = "addedAt", sortDir = -1;
+
+const $ = s => document.querySelector(s);
+const todayISO = () => new Date().toISOString().slice(0,10);
+const norm = s => (s||"").trim().toLowerCase();
+const domainOf = e => { const a = norm(e); return a.includes("@") ? a.split("@").pop() : a.replace(/^@/,""); };
+
+function setStatus(msg){ $("#status").textContent = msg; }
+
+async function load(){
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved){
+    try { db = JSON.parse(saved); setStatus("loaded your local working copy"); render(); return; }
+    catch(e){ /* fall through */ }
+  }
+  await reloadFromFile();
+}
+async function reloadFromFile(){
+  try{
+    const r = await fetch(DATA_URL, {cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    db = await r.json();
+    db.bad = db.bad||[]; db.good = db.good||[];
+    setStatus("loaded from " + DATA_URL);
+  }catch(e){
+    setStatus("could not fetch file (open via the website, or Import a JSON file)");
+    db.bad = db.bad||[]; db.good = db.good||[];
+  }
+  render();
+}
+function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+
+function findMatches(query){
+  const q = norm(query); if(!q) return null;
+  const dom = domainOf(q);
+  const scan = list => db[list].filter(x =>
+    norm(x.email) === q || (x.domain && norm(x.domain) === dom && !q.includes("@") ) ||
+    (x.domain && norm(x.domain) === dom) );
+  return { bad: scan("bad"), good: scan("good"), domain: dom };
+}
+
+function check(){
+  const v = $("#verdict");
+  const m = findMatches($("#checkInput").value);
+  if(!m){ v.className="verdict"; return; }
+  v.classList.add("show");
+  if(m.bad.length){
+    v.className = "verdict show v-bad";
+    v.innerHTML = "⛔ BAD — on the blocklist" + reasonLine(m.bad);
+  } else if(m.good.length){
+    v.className = "verdict show v-good";
+    v.innerHTML = "✓ GOOD — on the allowlist" + reasonLine(m.good);
+  } else {
+    v.className = "verdict show v-unknown";
+    v.innerHTML = "? UNKNOWN — not in either list <small>No match for this address or its domain (" + m.domain + ").</small>";
+  }
+}
+function reasonLine(hits){
+  const h = hits[0];
+  const how = norm(h.email) ? "exact address" : "domain rule";
+  return "<small>Matched by " + how + (h.category?(" · "+h.category):"") + (h.reason?(" · "+h.reason):"") + "</small>";
+}
+
+function addEntry(){
+  const list = $("#addList").value;
+  let email = norm($("#addEmail").value);
+  if(!email){ alert("Enter an email or @domain."); return; }
+  const entry = {
+    email: email.startsWith("@") ? "" : email,
+    domain: domainOf(email),
+    category: $("#addCategory").value.trim(),
+    reason: $("#addReason").value.trim(),
+    source: "manual",
+    addedAt: todayISO()
+  };
+  const dupe = db[list].find(x => norm(x.email)===entry.email && norm(x.domain)===entry.domain);
+  if(dupe){ alert("Already in the " + list + " list."); return; }
+  db[list].unshift(entry);
+  persist();
+  $("#addEmail").value=$("#addCategory").value=$("#addReason").value="";
+  setStatus("added to " + list + " · remember to Export and commit");
+  render();
+}
+
+function removeEntry(list, idx){
+  if(!confirm("Remove this entry?")) return;
+  db[list].splice(idx,1); persist(); setStatus("removed · remember to Export"); render();
+}
+
+function computeConflicts(){
+  const badSet = new Map(), out=[];
+  db.bad.forEach(x => badSet.set(norm(x.email)||("@"+norm(x.domain)), x));
+  db.good.forEach(g => {
+    const k = norm(g.email)||("@"+norm(g.domain));
+    if(badSet.has(k)) out.push(k.replace(/^@/,"")+" (in BOTH lists)");
+  });
+  return out;
+}
+
+function render(){
+  $("#cBad").textContent = db.bad.length;
+  $("#cGood").textContent = db.good.length;
+  const doms = new Set([...db.bad,...db.good].map(x=>norm(x.domain)).filter(Boolean));
+  $("#cDomains").textContent = doms.size;
+  const conflicts = computeConflicts();
+  $("#cConflict").textContent = conflicts.length;
+  $("#conflicts").innerHTML = conflicts.length
+    ? conflicts.map(c=>'<div class="conflict">⚠ '+c+' — review which list is correct.</div>').join("")
+    : '<p class="muted">No conflicts. No email appears in both lists.</p>';
+
+  const q = norm($("#search").value);
+  let rows = db[activeTab].map((x,i)=>({x,i}))
+    .filter(({x})=> !q || [x.email,x.domain,x.category,x.reason].some(f=>norm(f).includes(q)));
+  rows.sort((a,b)=>{
+    const av=norm(a.x[sortKey]), bv=norm(b.x[sortKey]);
+    return av<bv?-sortDir:av>bv?sortDir:0;
+  });
+  $("#tbody").innerHTML = rows.map(({x,i})=>`
+    <tr>
+      <td><span class="pill ${activeTab}">${activeTab}</span> ${x.email||"<em>(any)</em> @"+x.domain}</td>
+      <td>${x.category||""}</td><td>${x.reason||""}</td><td class="muted">${x.addedAt||""}</td>
+      <td><button class="del" title="Remove" onclick="removeEntry('${activeTab}',${i})">✕</button></td>
+    </tr>`).join("");
+  $("#emptyMsg").textContent = rows.length ? "" :
+    (db[activeTab].length ? "No matches for this search." : "This list is empty — add an entry above.");
+}
+
+function exportJson(){
+  db.meta = db.meta||{}; db.meta.updatedAt = todayISO();
+  const blob = new Blob([JSON.stringify(db,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "email-database.json"; a.click();
+  setStatus("exported — commit this file to data/email-database.json");
+}
+async function copyJson(){
+  db.meta = db.meta||{}; db.meta.updatedAt = todayISO();
+  await navigator.clipboard.writeText(JSON.stringify(db,null,2));
+  setStatus("JSON copied to clipboard");
+}
+function importJson(file){
+  const r = new FileReader();
+  r.onload = () => { try{
+    const j = JSON.parse(r.result); j.bad=j.bad||[]; j.good=j.good||[];
+    db = j; persist(); setStatus("imported "+file.name); render();
+  }catch(e){ alert("Not valid JSON: "+e.message); } };
+  r.readAsText(file);
+}
+
+// wire up
+$("#btnCheck").onclick = check;
+$("#checkInput").addEventListener("keydown", e=>{ if(e.key==="Enter") check(); });
+$("#btnAdd").onclick = addEntry;
+$("#btnExport").onclick = exportJson;
+$("#btnCopy").onclick = copyJson;
+$("#btnReload").onclick = ()=>{ if(confirm("Discard your local working copy and reload the committed file?")){ localStorage.removeItem(LS_KEY); reloadFromFile(); } };
+$("#fileImport").onchange = e=>{ if(e.target.files[0]) importJson(e.target.files[0]); };
+$("#search").addEventListener("input", render);
+document.querySelectorAll(".tabs button").forEach(b=> b.onclick=()=>{
+  activeTab=b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x===b));
+  render();
+});
+document.querySelectorAll("th[data-sort]").forEach(th=> th.onclick=()=>{
+  const k=th.dataset.sort; sortDir = (sortKey===k)? -sortDir : 1; sortKey=k; render();
+});
+
+load();
+</script>
+</body>
+</html>
