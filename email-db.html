@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Email Database — Bad &amp; Good</title>
+<style>
+  :root{
+    --bg:#F5EFE6; --surface:#FAF6EE; --sand:#EBE2D2; --ink:#1F1A14; --ink-soft:#4A4239;
+    --muted:#8A7F70; --hairline:#E0D5C2; --terracotta:#C76A3F; --terracotta-deep:#9E4F2C;
+    --ocean:#1F3A3D; --ocean-2:#2C5658; --bad:#9E4F2C; --good:#1F3A3D;
+    --f-sans:"Inter","Helvetica Neue",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-sans);line-height:1.45}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+  header h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+  header p{margin:0;color:var(--muted);font-size:14px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 22px}
+  button,.btn{font:inherit;cursor:pointer;border:1px solid var(--hairline);background:var(--surface);
+    color:var(--ink);padding:8px 14px;border-radius:8px}
+  button:hover{border-color:var(--muted)}
+  button:disabled{opacity:.5;cursor:default}
+  .btn-primary{background:var(--terracotta);border-color:var(--terracotta);color:#fff}
+  .btn-primary:hover{background:var(--terracotta-deep);border-color:var(--terracotta-deep)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+  .stat{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;padding:14px 16px}
+  .stat .n{font-size:28px;font-weight:700;line-height:1}
+  .stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+  .stat.bad .n{color:var(--bad)} .stat.good .n{color:var(--good)}
+  .card{background:var(--surface);border:1px solid var(--hairline);border-radius:12px;padding:18px;margin-bottom:18px}
+  .card h2{margin:0 0 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft)}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input,select{font:inherit;padding:8px 10px;border:1px solid var(--hairline);border-radius:8px;background:#fff;color:var(--ink);min-width:0}
+  input:focus,select:focus{outline:2px solid var(--terracotta);outline-offset:-1px}
+  .grow{flex:1 1 200px}
+  .verdict{margin-top:12px;padding:12px 14px;border-radius:10px;font-weight:600;display:none}
+  .verdict.show{display:block}
+  .verdict.v-bad{background:#f6e2d6;color:var(--bad)}
+  .verdict.v-good{background:#dde8e3;color:var(--good)}
+  .verdict.v-unknown{background:var(--sand);color:var(--ink-soft)}
+  .verdict small{display:block;font-weight:400;color:var(--ink-soft);margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+  tr:hover td{background:rgba(0,0,0,.02)}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600}
+  .pill.bad{background:#f6e2d6;color:var(--bad)} .pill.good{background:#dde8e3;color:var(--good)}
+  .pill.bulk{background:var(--sand);color:var(--ink-soft)}
+  .del{color:var(--muted);border:none;background:none;padding:2px 6px;font-size:16px}
+  .del:hover{color:var(--bad)}
+  .muted{color:var(--muted);font-size:13px}
+  .tabs{display:flex;gap:4px;margin-bottom:12px}
+  .tabs button.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .conflict{background:#fbeede;border:1px solid #e7c9a8;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:14px}
+  .notice{font-size:13px;color:var(--muted);margin:10px 0}
+  .hidden{display:none}
+  code{background:var(--sand);padding:1px 5px;border-radius:4px;font-size:.92em}
+  .pager{display:flex;gap:8px;align-items:center;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Email Database</h1>
+    <p>Bad (spam / blocklist) &amp; good (legit / allowlist) emails — check, add, search, compare. Built to scale to 500k+.</p>
+  </header>
+
+  <div class="bar">
+    <button class="btn-primary" id="btnExport">⬇ Export my additions</button>
+    <button id="btnCopy">⧉ Copy additions</button>
+    <button id="btnReload">↻ Reload from files</button>
+    <span class="muted" id="status" style="align-self:center"></span>
+  </div>
+
+  <div class="stats">
+    <div class="stat bad"><div class="n" id="cBad">0</div><div class="l">Bad emails</div></div>
+    <div class="stat good"><div class="n" id="cGood">0</div><div class="l">Good emails</div></div>
+    <div class="stat"><div class="n" id="cAnnotated">0</div><div class="l">Annotated</div></div>
+    <div class="stat"><div class="n" id="cConflict">0</div><div class="l">Conflicts</div></div>
+  </div>
+
+  <!-- CHECK -->
+  <div class="card">
+    <h2>Check an email</h2>
+    <div class="row">
+      <div class="grow">
+        <label for="checkInput">Email or domain to look up</label>
+        <input id="checkInput" class="grow" style="width:100%" placeholder="someone@example.com" autocomplete="off">
+      </div>
+      <button class="btn-primary" id="btnCheck">Check</button>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <!-- ADD -->
+  <div class="card">
+    <h2>Add an entry</h2>
+    <div class="row">
+      <div><label>List</label>
+        <select id="addList"><option value="bad">Bad</option><option value="good">Good</option></select></div>
+      <div class="grow"><label>Email</label><input id="addEmail" style="width:100%" placeholder="name@domain.com"></div>
+      <div><label>Category</label><input id="addCategory" placeholder="spam / lead / customer…" list="catList">
+        <datalist id="catList">
+          <option value="spam"><option value="phishing"><option value="disposable"><option value="bot"><option value="competitor">
+          <option value="lead"><option value="customer"><option value="partner"><option value="vendor">
+        </datalist></div>
+      <div class="grow"><label>Reason / note</label><input id="addReason" style="width:100%" placeholder="optional"></div>
+      <button class="btn-primary" id="btnAdd">Add</button>
+    </div>
+    <div class="notice">Tip: leave the local part blank and enter just <code>@domain.com</code> to block/allow an entire domain.
+      Adds are saved in this browser as “pending”; click <b>Export my additions</b> to commit them.
+      For bulk loads (thousands at once) use <code>scripts/ingest-emails.mjs</code> instead.</div>
+  </div>
+
+  <!-- COMPARE -->
+  <div class="card" id="conflictCard">
+    <h2>Compare &amp; conflicts</h2>
+    <div id="conflicts"></div>
+  </div>
+
+  <!-- LIST -->
+  <div class="card">
+    <div class="tabs">
+      <button data-tab="bad" class="active">Bad</button>
+      <button data-tab="good">Good</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <input id="search" class="grow" style="width:100%" placeholder="Search this list (email, domain, category, reason)…">
+    </div>
+    <table>
+      <thead><tr>
+        <th>Email</th><th>Category</th><th>Reason</th><th>Added</th><th></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p class="muted" id="emptyMsg"></p>
+    <div class="pager hidden" id="pager">
+      <button id="prevPage">‹ Prev</button>
+      <span class="muted" id="pageInfo"></span>
+      <button id="nextPage">Next ›</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Scalable design for 500k+ entries:
+//   * Bulk lists (data/bad-emails.txt, good-emails.txt) -> Set for O(1) checks.
+//   * Annotated entries (data/email-database.json) -> small Map for reasons.
+//   * Manual adds -> "pending" delta only, kept tiny in localStorage.
+//   * Browsing is paginated; search results are capped. Never render 500k rows.
+// ---------------------------------------------------------------------------
+const JSON_URL = "data/email-database.json";
+const BULK_URL = { bad: "data/bad-emails.txt", good: "data/good-emails.txt" };
+const LS_KEY = "emailDb.pending";          // only the small delta lives here
+const PAGE_SIZE = 100;
+const SEARCH_CAP = 500;                     // max rows scanned out per search
+
+// Source of truth for membership + counts (keys: "email" or "@domain")
+const allBad = new Set(), allGood = new Set();
+// Annotated entries only (browsable, have reasons). key -> {list,email,domain,category,reason,source,addedAt}
+const info = new Map();
+// Pending manual adds (the delta the user will export). key -> entry
+let pending = { bad: {}, good: {} };
+
+let activeTab = "bad";
+let page = 0;
+let metaFromFile = {};
+
+const $ = s => document.querySelector(s);
+const todayISO = () => new Date().toISOString().slice(0,10);
+const norm = s => (s||"").trim().toLowerCase();
+const domainOf = e => { const a = norm(e); return a.includes("@") ? a.split("@").pop() : a.replace(/^@/,""); };
+const keyOf = (email, domain) => norm(email) ? norm(email) : "@" + norm(domain);
+const fmt = n => n.toLocaleString();
+function setStatus(msg){ $("#status").textContent = msg; }
+
+// ---- loading ---------------------------------------------------------------
+async function loadAll(){
+  allBad.clear(); allGood.clear(); info.clear();
+  metaFromFile = {};
+  await Promise.all([ loadJson(), loadBulk("bad"), loadBulk("good") ]);
+  loadPending();
+  render();
+}
+
+async function loadJson(){
+  try{
+    const r = await fetch(JSON_URL, {cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    metaFromFile = j.meta || {};
+    for (const list of ["bad","good"]) {
+      (j[list]||[]).forEach(x => addEntry(list, x, /*annotated*/true));
+    }
+  }catch(e){ /* fine if missing; bulk lists may still load */ }
+}
+
+async function loadBulk(list){
+  try{
+    const r = await fetch(BULK_URL[list], {cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    const text = await r.text();
+    const target = list === "bad" ? allBad : allGood;
+    let start = 0;
+    // Parse line-by-line without building a giant array of objects.
+    while (start < text.length) {
+      let nl = text.indexOf("\n", start);
+      if (nl === -1) nl = text.length;
+      const line = text.slice(start, nl).trim();
+      start = nl + 1;
+      if (!line || line[0] === "#") continue;
+      target.add(norm(line));
+    }
+  }catch(e){ /* fine if missing */ }
+}
+
+// Register an entry into the membership Sets (+info if annotated).
+function addEntry(list, x, annotated){
+  const email = norm(x.email).startsWith("@") ? "" : norm(x.email);
+  const domain = norm(x.domain) || domainOf(email);
+  const k = keyOf(email, domain);
+  (list === "bad" ? allBad : allGood).add(k);
+  if (annotated) info.set(list + "|" + k, { list, email, domain,
+    category: x.category||"", reason: x.reason||"", source: x.source||"", addedAt: x.addedAt||"" });
+  return k;
+}
+
+function loadPending(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (saved && saved.bad && saved.good) pending = saved;
+  }catch(e){ pending = { bad:{}, good:{} }; }
+  for (const list of ["bad","good"]) {
+    Object.values(pending[list]).forEach(x => addEntry(list, x, true));
+  }
+}
+function persistPending(){ localStorage.setItem(LS_KEY, JSON.stringify(pending)); }
+
+// ---- check (O(1) membership) ----------------------------------------------
+function lookup(query){
+  const q = norm(query); if(!q) return null;
+  const dom = domainOf(q);
+  const keys = [];
+  if (q.includes("@") && !q.startsWith("@")) keys.push(q);   // exact address
+  keys.push("@" + dom);                                       // whole-domain rule
+  const hit = (set) => keys.find(k => set.has(k)) || null;
+  const bKey = hit(allBad), gKey = hit(allGood);
+  const reason = (k) => info.get("bad|"+k) || info.get("good|"+k) || null;
+  return { bad: bKey, good: gKey, domain: dom,
+           badInfo: bKey ? reason(bKey) : null, goodInfo: gKey ? reason(gKey) : null };
+}
+
+function check(){
+  const v = $("#verdict");
+  const m = lookup($("#checkInput").value);
+  if(!m){ v.className="verdict"; return; }
+  v.classList.add("show");
+  if(m.bad){
+    v.className = "verdict show v-bad";
+    v.innerHTML = "⛔ BAD — on the blocklist" + reasonLine(m.bad, m.badInfo);
+  } else if(m.good){
+    v.className = "verdict show v-good";
+    v.innerHTML = "✓ GOOD — on the allowlist" + reasonLine(m.good, m.goodInfo);
+  } else {
+    v.className = "verdict show v-unknown";
+    v.innerHTML = "? UNKNOWN — not in either list <small>No match for this address or its domain (" + m.domain + ").</small>";
+  }
+}
+function reasonLine(key, meta){
+  const how = key.startsWith("@") ? "domain rule" : "exact address";
+  if (!meta) return "<small>Matched by " + how + " · (bulk list, no note)</small>";
+  return "<small>Matched by " + how + (meta.category?(" · "+meta.category):"") + (meta.reason?(" · "+meta.reason):"") + "</small>";
+}
+
+// ---- add -------------------------------------------------------------------
+function add(){
+  const list = $("#addList").value;
+  let raw = norm($("#addEmail").value);
+  if(!raw){ alert("Enter an email or @domain."); return; }
+  const email = raw.startsWith("@") ? "" : raw;
+  const domain = domainOf(raw);
+  const k = keyOf(email, domain);
+  if ((list==="bad"?allBad:allGood).has(k)) { alert("Already on the " + list + " list."); return; }
+  const entry = { email, domain, category: $("#addCategory").value.trim(),
+    reason: $("#addReason").value.trim(), source: "manual", addedAt: todayISO() };
+  pending[list][k] = entry;
+  addEntry(list, entry, true);
+  persistPending();
+  $("#addEmail").value=$("#addCategory").value=$("#addReason").value="";
+  setStatus("added to " + list + " (pending) · Export my additions to commit");
+  render();
+}
+
+function removePending(list, k){
+  if(!confirm("Remove this pending entry?")) return;
+  delete pending[list][k];
+  // rebuild membership/info from scratch is simplest & safe at our annotated scale
+  persistPending();
+  loadAll();
+  setStatus("removed pending entry");
+}
+
+// ---- conflicts (intersection of the two Sets, capped display) --------------
+function computeConflicts(){
+  const [small, big] = allBad.size <= allGood.size ? [allBad, allGood] : [allGood, allBad];
+  const out = [];
+  for (const k of small) { if (big.has(k)) { out.push(k.replace(/^@/,"")); if (out.length >= 50) break; } }
+  return out;
+}
+
+// ---- render (paginated browse of ANNOTATED entries; search can scan bulk) --
+function annotatedRows(list){
+  return [...info.values()].filter(e => e.list === list);
+}
+
+function searchBulk(list, q){
+  // Scan the big Set for substring matches, capped so we never freeze.
+  const set = list === "bad" ? allBad : allGood;
+  const rows = []; let scanned = 0;
+  for (const k of set) {
+    scanned++;
+    if (k.includes(q)) {
+      const isDom = k.startsWith("@");
+      rows.push({ email: isDom ? "" : k, domain: isDom ? k.slice(1) : domainOf(k),
+        category:"", reason:"", addedAt:"", bulk:true, list });
+      if (rows.length >= SEARCH_CAP) break;
+    }
+  }
+  return rows;
+}
+
+function render(){
+  $("#cBad").textContent = fmt(allBad.size);
+  $("#cGood").textContent = fmt(allGood.size);
+  $("#cAnnotated").textContent = fmt(info.size);
+  const conflicts = computeConflicts();
+  $("#cConflict").textContent = fmt(conflicts.length) + (conflicts.length>=50 ? "+" : "");
+  $("#conflicts").innerHTML = conflicts.length
+    ? conflicts.map(c=>'<div class="conflict">⚠ '+c+' — in BOTH lists; review which is correct.</div>').join("")
+    : '<p class="muted">No conflicts found between the bad and good lists.</p>';
+
+  const q = norm($("#search").value);
+  let rows, note;
+  if (q) {
+    // Search: annotated matches first, then fill from the bulk list, capped.
+    const ann = annotatedRows(activeTab).filter(e =>
+      [e.email,e.domain,e.category,e.reason].some(f=>norm(f).includes(q)));
+    const bulk = searchBulk(activeTab, q).filter(b => !info.has(activeTab+"|"+keyOf(b.email,b.domain)));
+    rows = ann.concat(bulk).slice(0, SEARCH_CAP);
+    note = "Showing " + rows.length + (rows.length>=SEARCH_CAP ? "+ (capped)" : "") + " matches for “"+q+"”.";
+    $("#pager").classList.add("hidden");
+  } else {
+    // Browse: only annotated entries, paginated. Bulk lists are too big to page.
+    const all = annotatedRows(activeTab).sort((a,b)=> (b.addedAt||"").localeCompare(a.addedAt||""));
+    const total = all.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (page >= pages) page = pages - 1;
+    rows = all.slice(page*PAGE_SIZE, page*PAGE_SIZE + PAGE_SIZE);
+    const bulkN = (activeTab==="bad"?allBad:allGood).size - total;
+    note = total
+      ? "Annotated " + activeTab + " entries " + (page*PAGE_SIZE+1) + "–" + (page*PAGE_SIZE+rows.length) + " of " + fmt(total)
+        + (bulkN>0 ? " · plus " + fmt(bulkN) + " bulk entries (search to find them)." : "")
+      : (bulkN>0 ? fmt(bulkN) + " bulk " + activeTab + " entries — use search to look one up."
+                 : "This list is empty — add an entry above.");
+    $("#pager").classList.toggle("hidden", pages <= 1);
+    $("#pageInfo").textContent = "Page " + (page+1) + " / " + pages;
+    $("#prevPage").disabled = page <= 0;
+    $("#nextPage").disabled = page >= pages-1;
+  }
+
+  $("#tbody").innerHTML = rows.map(x => {
+    const k = keyOf(x.email, x.domain);
+    const isPending = pending[x.list] && pending[x.list][k];
+    const label = x.bulk ? '<span class="pill bulk">bulk</span>' : '<span class="pill '+x.list+'">'+x.list+'</span>';
+    const who = x.email || "<em>(any)</em> @" + x.domain;
+    const del = isPending
+      ? '<button class="del" title="Remove pending" onclick="removePending(\''+x.list+'\',\''+k.replace(/'/g,"\\'")+'\')">✕</button>'
+      : '';
+    return "<tr><td>"+label+" "+who+"</td><td>"+(x.category||"")+"</td><td>"+(x.reason||"")
+         +"</td><td class='muted'>"+(x.addedAt||"")+(isPending?" · pending":"")+"</td><td>"+del+"</td></tr>";
+  }).join("");
+  $("#emptyMsg").textContent = note;
+}
+
+// ---- export (only the pending delta) --------------------------------------
+function pendingPayload(){
+  const out = { meta: { exportedAt: todayISO(), note: "Pending additions — merge into data/email-database.json or ingest into the bulk lists." },
+                bad: Object.values(pending.bad), good: Object.values(pending.good) };
+  return out;
+}
+function exportJson(){
+  const n = Object.keys(pending.bad).length + Object.keys(pending.good).length;
+  if(!n){ setStatus("no pending additions to export"); return; }
+  const blob = new Blob([JSON.stringify(pendingPayload(),null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "email-additions.json"; a.click();
+  setStatus("exported "+n+" additions — hand to Claude or merge into the data files");
+}
+async function copyJson(){
+  await navigator.clipboard.writeText(JSON.stringify(pendingPayload(),null,2));
+  setStatus("pending additions copied to clipboard");
+}
+
+// ---- wire up ---------------------------------------------------------------
+$("#btnCheck").onclick = check;
+$("#checkInput").addEventListener("keydown", e=>{ if(e.key==="Enter") check(); });
+$("#btnAdd").onclick = add;
+$("#btnExport").onclick = exportJson;
+$("#btnCopy").onclick = copyJson;
+$("#btnReload").onclick = ()=>{ setStatus("reloading…"); loadAll(); };
+let searchTimer;
+$("#search").addEventListener("input", ()=>{ clearTimeout(searchTimer); page=0; searchTimer=setTimeout(render,120); });
+$("#prevPage").onclick = ()=>{ if(page>0){ page--; render(); } };
+$("#nextPage").onclick = ()=>{ page++; render(); };
+document.querySelectorAll(".tabs button").forEach(b=> b.onclick=()=>{
+  activeTab=b.dataset.tab; page=0;
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("active",x===b));
+  render();
+});
+
+loadAll();
+</script>
+</body>
+</html>

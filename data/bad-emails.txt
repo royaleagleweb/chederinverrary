@@ -1,0 +1,6 @@
+# BAD emails — bulk blocklist (spam / disposable / bot / blocked).
+# One entry per line. A bare "@domain.com" blocks the whole domain.
+# Lines starting with "#" are comments. Addresses are lowercased.
+# This file holds the LARGE volume; annotated entries with reasons live
+# in email-database.json. Load 500k+ here via scripts/ingest-emails.mjs.
+@mailinator.com
