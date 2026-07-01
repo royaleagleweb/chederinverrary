@@ -1,0 +1,7 @@
+# Files NOT served as public static assets by the Cloudflare Worker.
+.git
+.gitignore
+.assetsignore
+wrangler.toml
+scripts
+EMAIL-DATABASE.md
